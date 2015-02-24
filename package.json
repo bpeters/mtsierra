@@ -1,0 +1,26 @@
+{
+  "name": "Mt.Sierra",
+  "version": "0.0.0",
+  "description": "A game about reaching the bottom of a mountain.",
+  "main": "app.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bpeters/mtsierra.git"
+  },
+  "homepage": "https://github.com/bpeters/mtsierra",
+  "dependencies": {
+    "boids": "^1.0.0",
+    "cannon": "^0.6.1",
+    "express": "^4.11.1",
+    "keymaster": "^1.6.2",
+    "lodash": "^3.0.1",
+    "swig": "^1.4.2",
+    "three": "^0.69.0"
+  },
+  "devDependencies": {
+    "grunt": "^0.4.5",
+    "grunt-browserify": "^3.0.1",
+    "grunt-contrib-watch": "^0.6.1",
+    "grunt-nodemon": "^0.3.0"
+  }
+}
