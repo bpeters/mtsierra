@@ -5,28 +5,21 @@ var boids = require('boids');
 var _ = require('lodash');
 var entities = require('./entities');
 
-var world, timeStep=1/60, camera, scene, light, webglRenderer, container;
-
-var player;
+var world, timeStep=1/60, camera, scene, light, webglRenderer, container, player;
 
 var SCREEN_WIDTH = window.innerWidth;
 var SCREEN_HEIGHT = window.innerHeight;
 
 var CAMERA_START_X = 1000;
-var CAMERA_START_Y = 1200;
+var CAMERA_START_Y = 100;
 var CAMERA_START_Z = 0;
 
 var windowHalfX = window.innerWidth / 2;
 var windowHalfY = window.innerHeight / 2;
 
-initSound();
 initCannon();
 initThree();
 animate();
-
-function initSound () {
-	createjs.Sound.registerSounds(sounds, "assets/");
-}
 
 function initCannon() {
 	world = new CANNON.World();
@@ -35,7 +28,7 @@ function initCannon() {
 	world.solver.iterations = 10;
 
 	//player physics
-	player = entities.playerPhysics(HEALTH);
+	player = entities.playerPhysics(50);
 	world.add(player);
 
 }
@@ -84,7 +77,7 @@ function initThree() {
 	scene.add(groundMesh);
 
 	//playerMesh
-	playerMesh = entities.playerMesh(HEALTH);
+	playerMesh = entities.playerMesh(50);
 	scene.add(playerMesh);
 
 	//renderer
@@ -125,6 +118,10 @@ function updatePhysics() {
 
 	// Step the physics world
 	world.step(timeStep);
+
+	// Copy coordinates from Cannon.js to Three.js
+	playerMesh.position.copy(player.position);
+	playerMesh.quaternion.copy(player.quaternion);
 
 }
 

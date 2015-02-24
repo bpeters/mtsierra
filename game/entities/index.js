@@ -3,7 +3,6 @@ var CANNON = require('cannon');
 
 // Collision filter groups - must be powers of 2!
 var PLAYER = 1;
-var LEVEL = 500;
 
 function randomIntFromInterval(min, max) {
 	return Math.floor(Math.random()*(max-min+1)+min);
@@ -35,7 +34,7 @@ exports.playerPhysics = function(size) {
 	player.angularVelocity.set(0,1,0);
 	player.angularDamping = 0;
 	player.position.x = 0;
-	player.position.y = 0;
+	player.position.y = 1000;
 	player.position.z = 0;
 	player.collisionFilterGroup = PLAYER;
 	player.linearDamping = 0.9;
