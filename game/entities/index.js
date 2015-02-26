@@ -8,7 +8,9 @@ function randomIntFromInterval(min, max) {
 	return Math.floor(Math.random()*(max-min+1)+min);
 }
 
-exports.groundMesh = function() {
+exports.ground = function() {
+
+	var ground = {};
 
 	var groundGeometry = new THREE.PlaneBufferGeometry(10000, 10000);
 	var groundMaterial = new THREE.MeshPhongMaterial({
@@ -16,12 +18,18 @@ exports.groundMesh = function() {
 	});
 	var groundMesh = new THREE.Mesh(groundGeometry, groundMaterial);
 	groundMesh.rotation.x = -Math.PI / 2;
-	groundMesh.position.x = 0;
-	groundMesh.position.y = 0;
-	groundMesh.position.z = 0;
+	groundMesh.position.set(0,0,0);
 	groundMesh.receiveShadow = true;
 
-	return groundMesh;
+	var groundShape = new CANNON.Plane();
+	var groundBody = new CANNON.Body({ mass: 0 });
+	groundBody.addShape(groundShape);
+	groundBody.position.set(0,-5,0);
+
+	ground.mesh = groundMesh;
+	ground.body = groundBody;
+
+	return ground;
 };
 
 exports.playerPhysics = function(size) {
