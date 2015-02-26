@@ -12,13 +12,14 @@ exports.groundMesh = function() {
 
 	var groundGeometry = new THREE.PlaneBufferGeometry(10000, 10000);
 	var groundMaterial = new THREE.MeshPhongMaterial({
-		color: 0xffffff
+		color: 0xB1CED2
 	});
 	var groundMesh = new THREE.Mesh(groundGeometry, groundMaterial);
 	groundMesh.rotation.x = -Math.PI / 2;
 	groundMesh.position.x = 0;
 	groundMesh.position.y = 0;
 	groundMesh.position.z = 0;
+	groundMesh.receiveShadow = true;
 
 	return groundMesh;
 };
@@ -34,7 +35,7 @@ exports.playerPhysics = function(size) {
 	player.angularVelocity.set(0,1,0);
 	player.angularDamping = 0;
 	player.position.x = 0;
-	player.position.y = 1000;
+	player.position.y = 200;
 	player.position.z = 0;
 	player.collisionFilterGroup = PLAYER;
 	player.linearDamping = 0.9;
@@ -46,7 +47,7 @@ exports.playerMesh = function(size) {
 
 	var playerGeometry = new THREE.BoxGeometry(size, size, size);
 	var playerMaterial = new THREE.MeshLambertMaterial({
-			color: 0x81B4E4
+			color: 0xf4f4f4
 	});
 	var playerMesh = new THREE.Mesh(playerGeometry, playerMaterial);
 	playerMesh.castShadow = true;

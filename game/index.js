@@ -5,13 +5,13 @@ var boids = require('boids');
 var _ = require('lodash');
 var entities = require('./entities');
 
-var world, timeStep=1/60, camera, scene, light, webglRenderer, container, player;
+var world, timeStep=1/60, camera, scene, light, webglRenderer, container, player, mountain;
 
 var SCREEN_WIDTH = window.innerWidth;
 var SCREEN_HEIGHT = window.innerHeight;
 
 var CAMERA_START_X = 1000;
-var CAMERA_START_Y = 100;
+var CAMERA_START_Y = 200;
 var CAMERA_START_Z = 0;
 
 var windowHalfX = window.innerWidth / 2;
@@ -23,13 +23,13 @@ animate();
 
 function initCannon() {
 	world = new CANNON.World();
-	world.gravity.set(0,0,0);
+	world.gravity.set(0,-9.8,0);
 	world.broadphase = new CANNON.NaiveBroadphase();
 	world.solver.iterations = 10;
 
 	//player physics
 	player = entities.playerPhysics(50);
-	world.add(player);
+	//world.add(player);
 
 }
 
@@ -45,40 +45,72 @@ function initThree() {
 	camera.position.z = CAMERA_START_Z;
 	camera.lookAt({
 		x: 0,
-		y: 0,
+		y: 150,
 		z: 0
 	});
 
 	scene = new THREE.Scene();
 
-	//lights
-	light = new THREE.DirectionalLight(0xffffff, 1.75);
-	light.position.set(1, 1, 1);
-	light.castShadow = false;
+	scene.fog = new THREE.Fog( 0x000000, 500, 2000 );
 
-	light.shadowMapWidth = SCREEN_WIDTH;
-	light.shadowMapHeight = SCREEN_HEIGHT;
-
-	var d = 1000;
-
-	light.shadowCameraLeft = -d;
-	light.shadowCameraRight = d;
-	light.shadowCameraTop = d;
-	light.shadowCameraBottom = -d;
-
-	light.shadowCameraFar = 1000;
-	light.shadowDarkness = 0.5;
-
-	camera.add(light);
 	scene.add(camera);
+
+	//hemisphere light
+	var hemisphereLight = new THREE.HemisphereLight(0x73CADE, 0xffffff, 1.6);
+	hemisphereLight.position.set(1, 0, 1).normalize();
+	scene.add(hemisphereLight);
+
+	//lights
+	cameraLight = new THREE.DirectionalLight(0xffffff, 0.2);
+	cameraLight.position.set(1, 1, 1);
+	cameraLight.castShadow = true;
+
+	cameraLight.shadowMapWidth = SCREEN_WIDTH;
+	cameraLight.shadowMapHeight = SCREEN_HEIGHT;
+
+	var d = 400;
+
+	cameraLight.shadowCameraLeft = -d;
+	cameraLight.shadowCameraRight = d;
+	cameraLight.shadowCameraTop = d;
+	cameraLight.shadowCameraBottom = -d;
+
+	cameraLight.shadowCameraFar = 1000;
+	cameraLight.shadowDarkness = 0.2;
+
+	camera.add(cameraLight);
 
 	//ground
 	groundMesh = entities.groundMesh();
 	scene.add(groundMesh);
 
 	//playerMesh
-	playerMesh = entities.playerMesh(50);
-	scene.add(playerMesh);
+	playerMesh = entities.playerMesh(10);
+	//scene.add(playerMesh);
+
+	var loader = new THREE.JSONLoader();
+
+	// load a resource
+	loader.load(
+		// resource URL
+		'assets/landscape.json',
+		// Function when resource is loaded
+		function ( geometry ) {
+			var material = new THREE.MeshPhongMaterial({
+				color: 0xB1CED2
+			});
+			mountain = new THREE.Mesh( geometry, material );
+
+			mountain.scale.set(10,10,10);
+			mountain.position.x = -120;
+			mountain.position.y = -70;
+			mountain.receiveShadow = true;
+			mountain.castShadow = true;
+			console.log(mountain);
+
+			scene.add( mountain );
+		}
+	);
 
 	//renderer
 	webglRenderer = new THREE.WebGLRenderer();
@@ -106,10 +138,34 @@ function animate() {
 	requestAnimationFrame(animate);
 	updatePhysics();
 
-	//camera should match playerMesh position
-	camera.position.x = CAMERA_START_X + playerMesh.position.x;
-	camera.position.z = CAMERA_START_Z + playerMesh.position.z;
-	camera.position.y = CAMERA_START_Y + playerMesh.position.y;
+	var rotSpeed = 0.01;
+	var zoomSpeed = 0.1;
+	var x = camera.position.x,
+		y = camera.position.y,
+		z = camera.position.z;
+
+	//player input
+	if(key.isPressed("left")) {
+		camera.position.x = x * Math.cos(rotSpeed) + z * Math.sin(rotSpeed);
+		camera.position.z = z * Math.cos(rotSpeed) - x * Math.sin(rotSpeed);
+	}
+	if(key.isPressed("right")) {
+		camera.position.x = x * Math.cos(rotSpeed) - z * Math.sin(rotSpeed);
+		camera.position.z = z * Math.cos(rotSpeed) + x * Math.sin(rotSpeed);
+	}
+	if(key.isPressed("up")) {
+		camera.fov -= zoomSpeed;
+	}
+	if(key.isPressed("down")) {
+		camera.fov += zoomSpeed;
+	}
+
+	camera.updateProjectionMatrix();
+	camera.lookAt({
+		x: 0,
+		y: 150,
+		z: 0
+	});
 
 	render();
 }
@@ -120,12 +176,11 @@ function updatePhysics() {
 	world.step(timeStep);
 
 	// Copy coordinates from Cannon.js to Three.js
-	playerMesh.position.copy(player.position);
-	playerMesh.quaternion.copy(player.quaternion);
+	//playerMesh.position.copy(player.position);
+	//playerMesh.quaternion.copy(player.quaternion);
 
 }
 
 function render() {
-	camera.lookAt(playerMesh.position);
 	webglRenderer.render(scene, camera);
 }
