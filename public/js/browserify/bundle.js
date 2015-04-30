@@ -3,7 +3,7 @@ var THREE = require('three');
 var CANNON = require('cannon');
 
 // Collision filter groups - must be powers of 2!
-var PLAYER = 1;
+var GROUND = 1;
 
 function randomIntFromInterval(min, max) {
 	return Math.floor(Math.random()*(max-min+1)+min);
@@ -13,55 +13,77 @@ exports.ground = function() {
 
 	var ground = {};
 
-	var groundGeometry = new THREE.PlaneBufferGeometry(10000, 10000);
-	var groundMaterial = new THREE.MeshPhongMaterial({
+	var geometry = new THREE.PlaneBufferGeometry(10000, 10000);
+	var material = new THREE.MeshPhongMaterial({
 		color: 0xB1CED2
 	});
-	var groundMesh = new THREE.Mesh(groundGeometry, groundMaterial);
-	groundMesh.rotation.x = -Math.PI / 2;
-	groundMesh.position.set(0,0,0);
-	groundMesh.receiveShadow = true;
+	var mesh = new THREE.Mesh(geometry, material);
+	mesh.rotation.x = -Math.PI / 2;
+	mesh.position.set(0,5,0);
+	mesh.receiveShadow = true;
 
-	var groundShape = new CANNON.Plane();
-	var groundBody = new CANNON.Body({ mass: 0 });
-	groundBody.addShape(groundShape);
-	groundBody.position.set(0,-5,0);
+	var shape = new CANNON.Plane();
+	var body = new CANNON.Body({ mass: 0 });
+	body.addShape(shape);
+	body.position.set(0,5,0);
+	body.collisionFilterGroup = GROUND;
+	body.collisionFilterMask =  GROUND;
 
-	ground.mesh = groundMesh;
-	ground.body = groundBody;
+	ground.mesh = mesh;
+	ground.body = body;
 
 	return ground;
 };
 
-exports.playerPhysics = function(size) {
+exports.mountain = function(callback) {
 
-	var playerShape = new CANNON.Box(new CANNON.Vec3(size, size, size));
+	var mountain = {};
+	var mFaces = [], mVerts = [];
 
-	var player = new CANNON.Body({
-		mass: size
-	});
-	player.addShape(playerShape);
-	player.angularVelocity.set(0,1,0);
-	player.angularDamping = 0;
-	player.position.x = 0;
-	player.position.y = 200;
-	player.position.z = 0;
-	player.collisionFilterGroup = PLAYER;
-	player.linearDamping = 0.9;
+	var loader = new THREE.JSONLoader();
 
-	return player;
-};
+	// load a resource
+	loader.load(
+		// resource URL
+		'assets/landscape.json',
+		// Function when resource is loaded
+		function ( geometry ) {
+			var material = new THREE.MeshPhongMaterial({
+				color: 0xB1CED2
+			});
+			var mesh = new THREE.Mesh( geometry, material );
 
-exports.playerMesh = function(size) {
+			mesh.receiveShadow = true;
+			mesh.castShadow = true;
 
-	var playerGeometry = new THREE.BoxGeometry(size, size, size);
-	var playerMaterial = new THREE.MeshLambertMaterial({
-			color: 0xf4f4f4
-	});
-	var playerMesh = new THREE.Mesh(playerGeometry, playerMaterial);
-	playerMesh.castShadow = true;
+			var faces = mesh.geometry.faces;
+			var verts = mesh.geometry.vertices;
 
-	return playerMesh;
+			for(var f = 0; f < faces.length; f++){
+				mFaces.push([faces[f].a, faces[f].b, faces[f].c]);
+			}
+			for(var v = 0; v < verts.length; v++){
+				mVerts.push(new CANNON.Vec3(verts[v].z, verts[v].y, verts[v].x));
+			}
+
+			//Create Mountain Body
+			var body = new CANNON.Body({ mass: 1000 });
+
+			// Construct polyhedron
+			var shape = new CANNON.ConvexPolyhedron(mVerts, mFaces);
+
+			// Add to compound
+			body.addShape(shape);
+
+			body.position.x = 0;
+			body.position.y = 0;
+
+			mountain.mesh = mesh;
+			mountain.body = body;
+
+			return callback(mountain);
+		}
+	);
 };
 
 },{"cannon":5,"three":9}],2:[function(require,module,exports){
@@ -72,22 +94,24 @@ var boids = require('boids');
 var _ = require('lodash');
 var entities = require('./entities');
 
-var world, timeStep=1/60, camera, scene, light, webglRenderer, container, player, mountain, mountainBody;
-
-var ground = {};
-
-var mFaces = [], mVertices = [];
+//game
+var world, timeStep=1/60, camera, scene, light, webglRenderer, container;
 
 var SCREEN_WIDTH = window.innerWidth;
 var SCREEN_HEIGHT = window.innerHeight;
+
+var windowHalfX = window.innerWidth / 2;
+var windowHalfY = window.innerHeight / 2;
 
 var CAMERA_START_X = 1000;
 var CAMERA_START_Y = 200;
 var CAMERA_START_Z = 0;
 
-var windowHalfX = window.innerWidth / 2;
-var windowHalfY = window.innerHeight / 2;
+//entities
+var ground = {};
+var mountain = {};
 
+//init
 initThree();
 initCannon();
 initEntities();
@@ -135,43 +159,6 @@ function initThree() {
 	cameraLight.shadowDarkness = 0.2;
 	camera.add(cameraLight);
 
-	//playerMesh
-	playerMesh = entities.playerMesh(10);
-	//scene.add(playerMesh);
-
-	var loader = new THREE.JSONLoader();
-
-	// load a resource
-	loader.load(
-		// resource URL
-		'assets/landscape.json',
-		// Function when resource is loaded
-		function ( geometry ) {
-			var material = new THREE.MeshPhongMaterial({
-				color: 0xB1CED2
-			});
-			mountain = new THREE.Mesh( geometry, material );
-
-			mountain.receiveShadow = true;
-			mountain.castShadow = true;
-
-			var faces = mountain.geometry.faces;
-			var vertices = mountain.geometry.vertices;
-
-			for(var f = 0; f < faces.length; f++){
-				mFaces.push(faces[f].a);
-				mFaces.push(faces[f].b);
-				mFaces.push(faces[f].c);
-			}
-			for(var v = 0; v < vertices.length; v++){
-				mVertices.push(vertices[v].x);
-				mVertices.push(vertices[v].y);
-				mVertices.push(vertices[v].z);
-			}
-			scene.add( mountain );
-		}
-	);
-
 	//renderer
 	webglRenderer = new THREE.WebGLRenderer();
 	webglRenderer.setSize(SCREEN_WIDTH, SCREEN_HEIGHT);
@@ -188,36 +175,6 @@ function initCannon() {
 	world.gravity.set(0,-9.8,0);
 	world.broadphase = new CANNON.NaiveBroadphase();
 	world.solver.iterations = 10;
-
-	//player physics
-	player = entities.playerPhysics(50);
-	//world.add(player);
-
-	//Create Mountain Body
-	mountainBody = new CANNON.Body({ mass: 1000 });
-
-	var verts=[], faces=[];
-
-	// Get vertices
-	for(var v = 0; v < mVertices.length; v+=3){
-		verts.push(new CANNON.Vec3(mVertices[v],mVertices[v+1],mVertices[v+2]));
-	}
-	// Get faces
-	for(var f = 0; f < mFaces.length; f+=3){
-		faces.push([mFaces[f],mFaces[f+1],mFaces[f+2]]);
-	}
-
-	// Construct polyhedron
-	var mountainPart = new CANNON.ConvexPolyhedron(verts,faces);
-
-	// Add to compound
-	mountainBody.addShape(mountainPart);
-
-	mountainBody.position.x = 0;
-	mountainBody.position.y = 100;
-
-	world.add(mountainBody);
-
 }
 
 function initEntities() {
@@ -225,6 +182,14 @@ function initEntities() {
 	ground = entities.ground();
 	scene.add(ground.mesh);
 	world.add(ground.body);
+
+	//mountain
+	entities.mountain(function(entity) {
+		console.log(entity);
+		mountain = entity;
+		scene.add(mountain.mesh);
+		world.add(mountain.body);
+	});
 }
 
 function onWindowResize() {
@@ -266,9 +231,9 @@ function animate() {
 
 	camera.updateProjectionMatrix();
 	camera.lookAt({
-		x: 0,
-		y: 150,
-		z: 0
+		x: mountain.mesh.position.x,
+		y: mountain.mesh.position.y,
+		z: mountain.mesh.position.z
 	});
 
 	render();
@@ -279,10 +244,9 @@ function updatePhysics() {
 	// Step the physics world
 	world.step(timeStep);
 
-	if (mountain) {
-		// Copy coordinates from Cannon.js to Three.js
-		mountain.position.copy(mountainBody.position);
-		mountain.quaternion.copy(mountainBody.quaternion);
+	if (mountain.length) {
+		mountain.mesh.position.copy(mountain.body.position);
+		mountain.mesh.quaternion.copy(mountain.body.quaternion);
 	}
 
 	ground.body.position.copy(ground.mesh.position);

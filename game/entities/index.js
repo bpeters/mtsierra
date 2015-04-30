@@ -2,7 +2,7 @@ var THREE = require('three');
 var CANNON = require('cannon');
 
 // Collision filter groups - must be powers of 2!
-var PLAYER = 1;
+var GROUND = 1;
 
 function randomIntFromInterval(min, max) {
 	return Math.floor(Math.random()*(max-min+1)+min);
@@ -12,53 +12,75 @@ exports.ground = function() {
 
 	var ground = {};
 
-	var groundGeometry = new THREE.PlaneBufferGeometry(10000, 10000);
-	var groundMaterial = new THREE.MeshPhongMaterial({
+	var geometry = new THREE.PlaneBufferGeometry(10000, 10000);
+	var material = new THREE.MeshPhongMaterial({
 		color: 0xB1CED2
 	});
-	var groundMesh = new THREE.Mesh(groundGeometry, groundMaterial);
-	groundMesh.rotation.x = -Math.PI / 2;
-	groundMesh.position.set(0,0,0);
-	groundMesh.receiveShadow = true;
+	var mesh = new THREE.Mesh(geometry, material);
+	mesh.rotation.x = -Math.PI / 2;
+	mesh.position.set(0,5,0);
+	mesh.receiveShadow = true;
 
-	var groundShape = new CANNON.Plane();
-	var groundBody = new CANNON.Body({ mass: 0 });
-	groundBody.addShape(groundShape);
-	groundBody.position.set(0,-5,0);
+	var shape = new CANNON.Plane();
+	var body = new CANNON.Body({ mass: 0 });
+	body.addShape(shape);
+	body.position.set(0,5,0);
+	body.collisionFilterGroup = GROUND;
+	body.collisionFilterMask =  GROUND;
 
-	ground.mesh = groundMesh;
-	ground.body = groundBody;
+	ground.mesh = mesh;
+	ground.body = body;
 
 	return ground;
 };
 
-exports.playerPhysics = function(size) {
+exports.mountain = function(callback) {
 
-	var playerShape = new CANNON.Box(new CANNON.Vec3(size, size, size));
+	var mountain = {};
+	var mFaces = [], mVerts = [];
 
-	var player = new CANNON.Body({
-		mass: size
-	});
-	player.addShape(playerShape);
-	player.angularVelocity.set(0,1,0);
-	player.angularDamping = 0;
-	player.position.x = 0;
-	player.position.y = 200;
-	player.position.z = 0;
-	player.collisionFilterGroup = PLAYER;
-	player.linearDamping = 0.9;
+	var loader = new THREE.JSONLoader();
 
-	return player;
-};
+	// load a resource
+	loader.load(
+		// resource URL
+		'assets/landscape.json',
+		// Function when resource is loaded
+		function ( geometry ) {
+			var material = new THREE.MeshPhongMaterial({
+				color: 0xB1CED2
+			});
+			var mesh = new THREE.Mesh( geometry, material );
 
-exports.playerMesh = function(size) {
+			mesh.receiveShadow = true;
+			mesh.castShadow = true;
 
-	var playerGeometry = new THREE.BoxGeometry(size, size, size);
-	var playerMaterial = new THREE.MeshLambertMaterial({
-			color: 0xf4f4f4
-	});
-	var playerMesh = new THREE.Mesh(playerGeometry, playerMaterial);
-	playerMesh.castShadow = true;
+			var faces = mesh.geometry.faces;
+			var verts = mesh.geometry.vertices;
 
-	return playerMesh;
+			for(var f = 0; f < faces.length; f++){
+				mFaces.push([faces[f].a, faces[f].b, faces[f].c]);
+			}
+			for(var v = 0; v < verts.length; v++){
+				mVerts.push(new CANNON.Vec3(verts[v].z, verts[v].y, verts[v].x));
+			}
+
+			//Create Mountain Body
+			var body = new CANNON.Body({ mass: 1000 });
+
+			// Construct polyhedron
+			var shape = new CANNON.ConvexPolyhedron(mVerts, mFaces);
+
+			// Add to compound
+			body.addShape(shape);
+
+			body.position.x = 0;
+			body.position.y = 0;
+
+			mountain.mesh = mesh;
+			mountain.body = body;
+
+			return callback(mountain);
+		}
+	);
 };
